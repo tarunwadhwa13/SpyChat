@@ -1,9 +1,12 @@
-from spy_details import friends,Spy
+from spy_details import friends,Spy,Admin
 from steganography.steganography import Steganography
 from datetime import datetime
 import ctypes
 from passlib.hash import pbkdf2_sha256
 import csv
+import sqlite3
+
+conn = sqlite3.connect('test.db')
 
 STATUS_MESSAGES = ['My name is Bond, James Bond', 'Shaken, not stirred.','Hey there']
 
@@ -11,17 +14,27 @@ users = []
 
 
 def load_users():
-    try:
+    # try:
         with open("user_details.csv","rb") as user_details:
             read_obj = csv.reader(user_details)
             for row in read_obj:
-                new_user = Spy(name=row[0],salutation=row[1],age=int(row[2]),rating=float(row[3]),password=row[4])
+                name = row[0]
+                salutation = row[1]
+                age = int(row[2])
+                rating = float(row[3])
+                password = row[4]
+                # conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
+                #               VALUES (?,?,?,?,?,?)",(name,salutation, name, password,age,rating));
+                new_user = Admin(name,salutation,age,rating,password)
                 users.append(new_user)
+
         user_details.close()
+        show_user_details()
+        conn.close()
         return users[0]
-    except:
-        print 'There was some error in loading friends. App may not work as expected'
-    return None
+    # except:
+    #     print 'There was some error in loading friends. App may not work as expected'
+        return None
 
 
 def getpassword(username):
@@ -32,7 +45,7 @@ def getpassword(username):
 
 
 def login(username):
-    count =0
+    count = 0
     a, user_pass = getpassword(username)
     if not a:
         print 'User not found '
@@ -59,7 +72,7 @@ def signup():
     spy_salutation = get_salutation()
     spy_age = get_age()
     spy_rating = get_rating()
-    spy = Spy('', '', 0, 0.0,'')
+    spy = Admin('', '', 0, 0.0,'')
     spy.is_online = True
     spy.name = spy_name
     spy.salutation = spy_salutation
@@ -77,6 +90,8 @@ def signup():
     spy.password= pbkdf2_sha256.hash(user_pass)
     users.append(spy)
     try:
+        conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
+                      VALUES (?,?,?,?,?,?)", (spy.name, spy.salutation, spy.name, spy.password, spy.age, spy.rating))
         with open("user_details.csv","ab") as user_data:
             write_obj = csv.writer(user_data)
             write_obj.writerow([spy_name,spy_salutation,spy_age,spy_rating,spy.password])
@@ -94,26 +109,27 @@ def start_chat(spy):
     while show_menu :
         menu_choices = "What do you want to do? \n1. Add a status update\n2. Add a friend\n3. Select a friend" \
                        "\n4. Send a Message\n5. Read a Message\n6. Read chats\n7. Logout\n8. Check Your Profile\n9. Close application\n"
-        menu_choice = int(raw_input(menu_choices))
-
-        if menu_choice == 1:
-            current_status_message = add_status(current_status_message)
-        elif menu_choice == 2:
-            len_friends = add_friend()
-        elif menu_choice == 3:
-            select_friend()
-        elif menu_choice == 4:
-            send_message()
-        elif menu_choice == 5:
-            read_message()
-        elif menu_choice == 6:
-            read_chats()
-        elif menu_choice == 7:
-            show_menu = False
-        elif menu_choice == 8:
-            show_profile(spy)
-        else:
-            exit(0)
+        menu_choice = (raw_input(menu_choices))
+        if menu_choice.isdigit():
+            menu_choice = int(menu_choice)
+            if menu_choice == 1:
+                current_status_message = add_status(current_status_message)
+            elif menu_choice == 2:
+                len_friends = add_friend()
+            elif menu_choice == 3:
+                select_friend()
+            elif menu_choice == 4:
+                send_message()
+            elif menu_choice == 5:
+                read_message()
+            elif menu_choice == 6:
+                read_chats()
+            elif menu_choice == 7:
+                show_menu = False
+            elif menu_choice == 8:
+                show_profile(spy)
+            else:
+                exit(0)
 
     print 'Thank you for using spychat'
 
@@ -143,12 +159,19 @@ def add_status(current_status_message):
         if len(STATUS_MESSAGES) >= message_selection:
             updated_status_message = STATUS_MESSAGES[message_selection - 1]
 
+    # if updated_status_message!=current_status_message:
+    #     try:
+    #         conn.execute("UPDATE USERS set CURRENT_STATUS_MESSAGE = ? where ID = ?",(current_status_message))
+    #         conn.commit
+    #     except:
+    #         print 'Couldnt save changes in the database'
+
     return updated_status_message
 
 
 def add_friend():
 
-    new_friend = Spy('','',0,0.0,None)
+    new_friend = Spy('','',0,0.0)
     new_friend.name = get_name()
     new_friend.salutation = get_salutation()
     new_friend.age = get_age()
@@ -170,7 +193,7 @@ def get_name():
             ctypes.windll.user32.MessageBoxA(0, "That doesnt look like a valid name. Please use alphabets [a-z] only",
                                              "Error", 1)
     except:
-        print 'There was some error whiile processing your request. Please Try Again'
+        print 'There was some error while processing your request. Please Try Again'
     return get_name()
 
 
@@ -220,15 +243,19 @@ def get_rating():
 
 def select_friend():
     item_position = 1
-    for i in friends:
-        print str(item_position) + ' ' + i.name
-        item_position = item_position+1;
-    choice = input('Enter your choice')
-    if len(friends)>=choice:
-        return choice-1
+    if len(friends):
+        for i in friends:
+            print '%d %s %s aged %d with rating %.1f'%(item_position,i.salutation,i.name,i.age,i.rating)
+            item_position = item_position+1
+        choice = input('Enter your choice')
+        if len(friends)>=choice:
+            return choice-1
+        else:
+            print 'Invalid option'
+        return select_friend()
     else:
-        print 'Invalid option'
-    return select_friend()
+        print 'You dont have any friends'
+        return None
 
 
 def send_message():
@@ -266,23 +293,27 @@ def read_message():
 
 def read_chats():
     friend_choice = select_friend()
-    for chat in friends[friend_choice].chats:
-        if chat.sent_by_me:
-            print '[%s] %s: %s' % (
-                chat.time.strftime("%b %d %Y %H:%M:%S") +  'You said ' + chat.message)
+    if friend_choice:
+        if len(friends[friend_choice].chats):
+            for chat in friends[friend_choice].chats:
+                if chat.sent_by_me:
+                    print '[%s] %s: %s' % (
+                        chat.time.strftime("%b %d %Y %H:%M:%S") +  'You said ' + chat.message)
+                else:
+                    print '[%s] %s read: %s' % (
+                    chat.time.strftime("%b %d %Y %H:%M:%S") + friends[friend_choice].name
+                    + chat.message)
         else:
-            print '[%s] %s read: %s' % (
-            chat.time.strftime("%b %d %Y %H:%M:%S") + friends[friend_choice].name +
-            chat.message)
+            print 'You dont have any conversations'
+    else:
+        print 'You dont have any friend'
 
 
 def show_profile(spy):
     index = users.index(spy)
     show_options = True
     while show_options:
-        print 'Name :%s\n' \
-              'Age :%d\n' \
-              'Rating :%.1f\n'%(spy.name,spy.age,float(spy.rating))
+        spy.show_profile()
         print 'You can\n' \
               '1. Change your rating\n' \
               '2. Change your password\n' \
@@ -291,12 +322,23 @@ def show_profile(spy):
         if choice.isdigit():
             choice = int(choice)
             if choice == 1:
-                spy.rating = float(raw_input("Enter new rating :"))
+                spy.change_rating()
             elif choice == 2:
-                spy.password = pbkdf2_sha256.hash(raw_input("Enter new password :"))
+                spy.change_password()
             elif choice == 3:
                 show_options = False
             else:
                 print 'Invalid option selected'
         else:
             print 'Option must be an integer'
+
+
+def show_user_details():
+    cursor = conn.execute("SELECT id, name, age, password,rating from USERS")
+    print 'GOT data'
+    for row in cursor:
+        print "ID = ", row[0]
+        print "NAME = ", row[1]
+        print "AGE = ", row[2]
+        print "PASSWORD = ", row[3]
+        print "RATING = ", row[4]
