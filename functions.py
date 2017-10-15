@@ -4,37 +4,32 @@ from datetime import datetime
 import ctypes
 from passlib.hash import pbkdf2_sha256
 import csv
-import sqlite3
-
-conn = sqlite3.connect('test.db')
-
-STATUS_MESSAGES = ['My name is Bond, James Bond', 'Shaken, not stirred.','Hey there']
-
+from database_functions import Users
 users = []
+usernames = []
 
 
 def load_users():
-    # try:
+     try:
         with open("user_details.csv","rb") as user_details:
             read_obj = csv.reader(user_details)
             for row in read_obj:
                 name = row[0]
                 salutation = row[1]
-                age = int(row[2])
-                rating = float(row[3])
-                password = row[4]
-                # conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
-                #               VALUES (?,?,?,?,?,?)",(name,salutation, name, password,age,rating));
-                new_user = Admin(name,salutation,age,rating,password)
+                username = row[2]
+                age = int(row[3])
+                rating = float(row[4])
+                password = row[5]
+                new_user = Admin(name,salutation,username,age,rating,password)
+                usernames.append(username)
                 users.append(new_user)
 
         user_details.close()
-        show_user_details()
-        conn.close()
+        Users.show_user_details()
         return users[0]
-    # except:
-    #     print 'There was some error in loading friends. App may not work as expected'
-        return None
+     except:
+         print 'There was some error in loading friends. App may not work as expected'
+     return None
 
 
 def getpassword(username):
@@ -63,18 +58,15 @@ def login(username):
 
 
 def signup():
+    spy_username = get_username()
     spy_name = get_name()
-    for user in users:
-      if spy_name == user.name:
-          print 'User with this username already exists. Please try another name'
-          return signup()
-
     spy_salutation = get_salutation()
     spy_age = get_age()
     spy_rating = get_rating()
-    spy = Admin('', '', 0, 0.0,'')
+    spy = Admin('', '','', 0, 0.0,'')
     spy.is_online = True
     spy.name = spy_name
+    spy.username = spy_username
     spy.salutation = spy_salutation
     spy.age = spy_age
     spy.rating = spy_rating
@@ -86,17 +78,16 @@ def signup():
         if user_pass == pass_verify:
             continue
         print 'Passwords matching failed. Please try again'
-
+    print 'Passwords matched\nRegistering User.Please Wait...'
     spy.password= pbkdf2_sha256.hash(user_pass)
     users.append(spy)
-    try:
-        conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
-                      VALUES (?,?,?,?,?,?)", (spy.name, spy.salutation, spy.name, spy.password, spy.age, spy.rating))
-        with open("user_details.csv","ab") as user_data:
-            write_obj = csv.writer(user_data)
-            write_obj.writerow([spy_name,spy_salutation,spy_age,spy_rating,spy.password])
-    except:
-        print 'Write into file failed'
+    Users.write(name=spy.name,salutation=spy.salutation,username=spy_username,age=spy.age,rating=spy.rating,password=spy.password)
+#     conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
+#                   VALUES (?,?,?,?,?,?)", (spy.name, spy.salutation, spy.name, spy.password, spy.age, spy.rating))
+    with open("user_details.csv","ab") as user_data:
+        write_obj = csv.writer(user_data)
+        write_obj.writerow([spy_name,spy_salutation,spy_username,spy_age,spy_rating,spy.password])
+
     print "Authentication complete. Welcome " + spy_name + " age: " + str(spy_age) + " and rating of: " + \
           str(spy_rating) + " Proud to have you Onboard"
     return spy
@@ -134,39 +125,8 @@ def start_chat(spy):
     print 'Thank you for using spychat'
 
 
-def add_status(current_status_message):
-    updated_status_message = current_status_message
-    if current_status_message != None:
-      print "Your current status message is " + current_status_message + "\n"
-    else:
-      print 'You don\'t have any status message currently \n'
-
-    default = raw_input("Do you want to select from the older status (y/n)?")
-
-    if default.upper() == "N":
-        new_status_message = raw_input("What status message do you want to set?")
-
-        if len(new_status_message) > 0:
-            updated_status_message = new_status_message
-            STATUS_MESSAGES.append(updated_status_message)
-
-    elif default.upper() == 'Y':
-        item_position = 1
-        for message in STATUS_MESSAGES:
-            print str(item_position) + ". " + message
-            item_position = item_position + 1
-        message_selection = input("\nChoose from the above messages ")
-        if len(STATUS_MESSAGES) >= message_selection:
-            updated_status_message = STATUS_MESSAGES[message_selection - 1]
-
-    # if updated_status_message!=current_status_message:
-    #     try:
-    #         conn.execute("UPDATE USERS set CURRENT_STATUS_MESSAGE = ? where ID = ?",(current_status_message))
-    #         conn.commit
-    #     except:
-    #         print 'Couldnt save changes in the database'
-
-    return updated_status_message
+def add_status(spy):
+    return spy.change_status()
 
 
 def add_friend():
@@ -182,6 +142,14 @@ def add_friend():
         print 'We couldn\'t add friend. Please try again or check log.'
 
     return len(friends)
+
+
+def get_username():
+    username = raw_input("Enter Username :")
+    if username in usernames:
+        print 'User with this username already exists. Please try another name !!'
+        return get_username()
+    return username
 
 
 def get_name():
@@ -310,7 +278,6 @@ def read_chats():
 
 
 def show_profile(spy):
-    index = users.index(spy)
     show_options = True
     while show_options:
         spy.show_profile()
@@ -332,13 +299,3 @@ def show_profile(spy):
         else:
             print 'Option must be an integer'
 
-
-def show_user_details():
-    cursor = conn.execute("SELECT id, name, age, password,rating from USERS")
-    print 'GOT data'
-    for row in cursor:
-        print "ID = ", row[0]
-        print "NAME = ", row[1]
-        print "AGE = ", row[2]
-        print "PASSWORD = ", row[3]
-        print "RATING = ", row[4]
