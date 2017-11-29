@@ -3,7 +3,7 @@
 '''
 
 #Import Statements
-from functions import start_chat,login,signup,load_users,users
+from functions import start_chat,login,signup,load_users
 
 
 spy = load_users()
@@ -11,7 +11,6 @@ if spy:
     print '\t\t-----Welcome to SpyChat------\n'
     print 'This app is configured for {0} {1}'.format(spy.salutation, spy.name)
     while True:
-        spy = users[0]
         response = raw_input("Do you want to continue as " + spy.salutation + " " + spy.name + "?(Y/N)")
 
         if response.upper() == "Y":
@@ -26,14 +25,17 @@ if spy:
             try:
                 if int(choice) == 1:
                     username = raw_input("Enter your registered username :")
-                    spy = login(username)
-                    if spy:
+                    temp = login(username)
+                    if temp:
+                        spy=temp
                         start_chat(spy)
                     else:
                         print 'Login failed :('
                 elif int(choice) == 2:
-                        spy = signup()
-                        start_chat(spy)
+                        temp = signup()
+                        if temp:
+                            spy=temp
+                            start_chat(spy)
 
                 else:
                     print 'Not a valid option i guess'
@@ -43,6 +45,7 @@ if spy:
 
         else:
             print 'Invalid option. Shutting app down!'
+            exit(0)
 
 else:
     spy = signup()

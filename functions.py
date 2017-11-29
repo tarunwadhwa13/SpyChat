@@ -1,39 +1,41 @@
-from spy_details import friends,Spy,Admin
+from spy_details import friends,Users,Friend
 from steganography.steganography import Steganography
 from datetime import datetime
 import ctypes
 from passlib.hash import pbkdf2_sha256
 import csv
-from database_functions import Users
-users = []
+import Validators as validators
+
 usernames = []
+user_list = Users.load()
 
 
 def load_users():
-     try:
-        with open("user_details.csv","rb") as user_details:
-            read_obj = csv.reader(user_details)
-            for row in read_obj:
-                name = row[0]
-                salutation = row[1]
-                username = row[2]
-                age = int(row[3])
-                rating = float(row[4])
-                password = row[5]
-                new_user = Admin(name,salutation,username,age,rating,password)
-                usernames.append(username)
-                users.append(new_user)
 
-        user_details.close()
-        Users.show_user_details()
-        return users[0]
-     except:
-         print 'There was some error in loading friends. App may not work as expected'
-     return None
+        for user in user_list:
+         usernames.append(user.username)
+
+        # with open("user_details.csv","rb") as user_details:
+        #     read_obj = csv.reader(user_details)
+        #     for row in read_obj:
+        #         name = row[0]
+        #         salutation = row[1]
+        #         username = row[2]
+        #         age = int(row[3])
+        #         rating = float(row[4])
+        #         password = row[5]
+        #         new_user = Users(name,salutation,username,age,rating,password)
+        #         usernames.append(username)
+        #         users.append(new_user)
+        #
+        # user_details.close()
+        # Users.show_user_details()
+
+        return user_list[0]
 
 
 def getpassword(username):
-    for user in users:
+    for user in user_list:
         if user.name == username:
             return True,user
     return False,None
@@ -63,7 +65,7 @@ def signup():
     spy_salutation = get_salutation()
     spy_age = get_age()
     spy_rating = get_rating()
-    spy = Admin('', '','', 0, 0.0,'')
+    spy = Users('', '','', 0, 0.0,'')
     spy.is_online = True
     spy.name = spy_name
     spy.username = spy_username
@@ -80,7 +82,7 @@ def signup():
         print 'Passwords matching failed. Please try again'
     print 'Passwords matched\nRegistering User.Please Wait...'
     spy.password= pbkdf2_sha256.hash(user_pass)
-    users.append(spy)
+    user_list.append(spy)
     Users.write(name=spy.name,salutation=spy.salutation,username=spy_username,age=spy.age,rating=spy.rating,password=spy.password)
 #     conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
 #                   VALUES (?,?,?,?,?,?)", (spy.name, spy.salutation, spy.name, spy.password, spy.age, spy.rating))
@@ -95,7 +97,6 @@ def signup():
 
 def start_chat(spy):
     show_menu = True
-    current_status_message = None
 
     while show_menu :
         menu_choices = "What do you want to do? \n1. Add a status update\n2. Add a friend\n3. Select a friend" \
@@ -104,9 +105,9 @@ def start_chat(spy):
         if menu_choice.isdigit():
             menu_choice = int(menu_choice)
             if menu_choice == 1:
-                current_status_message = add_status(current_status_message)
+                spy.change_status()
             elif menu_choice == 2:
-                len_friends = add_friend()
+                len_friends = add_friend(spy)
             elif menu_choice == 3:
                 select_friend()
             elif menu_choice == 4:
@@ -125,22 +126,28 @@ def start_chat(spy):
     print 'Thank you for using spychat'
 
 
-def add_status(spy):
-    return spy.change_status()
+def add_friend(spy):
 
-
-def add_friend():
-
-    new_friend = Spy('','',0,0.0)
-    new_friend.name = get_name()
-    new_friend.salutation = get_salutation()
-    new_friend.age = get_age()
-    new_friend.rating = get_rating()
-    try:
-        friends.append(new_friend)
-    except:
-        print 'We couldn\'t add friend. Please try again or check log.'
-
+    # new_friend = Spy('','',0,0.0)
+    # new_friend.name = get_name()
+    # new_friend.salutation = get_salutation()
+    # new_friend.age = get_age()
+    # new_friend.rating = get_rating()
+    # try:
+    #     friends.append(new_friend)
+    # except:
+    #     print 'We couldn\'t add friend. Please try again or check log.'
+    Users.show_user_details()
+    index = spy.id
+    print 'Spy id ' + str(spy.id)
+    while index == spy.id:
+        index = validators.get_int("Select friend to add as friend",1,len(user_list)+1)
+        if index == spy.id:
+            print 'You cant add yourself as friend'
+    friend = Friend(user_id = index)
+    friend.save(spy)
+    friends.append(user_list[index-1])
+    print 'Friend Added successfully'
     return len(friends)
 
 
@@ -154,12 +161,7 @@ def get_username():
 
 def get_name():
     try:
-        name = raw_input("Please enter your name to continue :")
-        if len(name)>3 and name.isalpha():
-            return name
-        else:
-            ctypes.windll.user32.MessageBoxA(0, "That doesnt look like a valid name. Please use alphabets [a-z] only",
-                                             "Error", 1)
+        return validators.get_alpha("Please enter your name to continue",3)
     except:
         print 'There was some error while processing your request. Please Try Again'
     return get_name()
@@ -167,14 +169,7 @@ def get_name():
 
 def get_age():
     try:
-        age = raw_input("Please enter your age to continue :")
-        if age.isdigit():
-            age = int(age)
-            if age>12 and age<50:
-                return age
-            else:
-                ctypes.windll.user32.MessageBoxA(0, "That doesnt look like a valid age. \
-                        Please use digits [0-9] only.\nNote- Spy with age 12-50 are considered valid", "Error", 1)
+       return validators.get_int("Please Enter your age",12,50)
     except:
         print 'There was some error whiile processing your request. Please Try Again'
     return get_age()
@@ -182,12 +177,7 @@ def get_age():
 
 def get_salutation():
     try:
-        salutation = raw_input("Please enter salutation :")
-        if len(salutation)>=2 and salutation.isalpha():
-            return salutation.title()
-        else:
-            ctypes.windll.user32.MessageBoxA(0,"That doesnt look like a valid salutation. Please use alphabets [a-z] only",
-                                             "Error", 1)
+        return validators.get_alpha("Please Enter your Salutation",2,5).title()
     except:
         print 'There was some error whiile processing your request. Please Try Again'
     return get_salutation()
@@ -195,15 +185,7 @@ def get_salutation():
 
 def get_rating():
     try:
-        rating = raw_input("Please enter your rating to continue :")
-        if rating.isdigit():
-            rating = float(rating)
-            if rating >0:
-                return float(rating)
-            else:
-                print 'rating must be a positive float'
-        else:
-            ctypes.windll.user32.MessageBoxA(0, "Rating not valid", "Error", 1)
+        return validators.get_float("Please Enter a vallid rating",1.0,10.0)
     except:
         print 'There was some error whiile processing your request. Please Try Again'
     return get_rating()
@@ -215,15 +197,12 @@ def select_friend():
         for i in friends:
             print '%d %s %s aged %d with rating %.1f'%(item_position,i.salutation,i.name,i.age,i.rating)
             item_position = item_position+1
-        choice = input('Enter your choice')
-        if len(friends)>=choice:
-            return choice-1
-        else:
-            print 'Invalid option'
-        return select_friend()
+        choice = validators.get_int("Enter your choice",1,len(friends)+1)
+        return choice-1
+
     else:
         print 'You dont have any friends'
-        return None
+    return None
 
 
 def send_message():
@@ -247,7 +226,7 @@ def send_message():
 
 def read_message():
     friend_choice = select_friend()
-    output_path = raw_input('ENter image path')
+    output_path = raw_input('Enter image path')
     secret_text = Steganography.decode(output_path)
     new_chat = {
         "message": secret_text,
