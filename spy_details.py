@@ -1,7 +1,7 @@
+import sqlite3
 from datetime import datetime
 from passlib.hash import pbkdf2_sha256
 STATUS_MESSAGES = ['My name is Bond, James Bond', 'Shaken, not stirred.','Hey there']
-import sqlite3
 user_list = []
 friends = []
 conn = sqlite3.connect('test.db')
@@ -25,10 +25,9 @@ class Users:
     def change_rating(self):
         self.rating = float(raw_input("Enter new rating"))
 
-
     def change_status(self):
         updated_status_message = self.current_status_message
-        if self.current_status_message != None:
+        if self.current_status_message is not None:
             print "Your current status message is " + self.current_status_message + "\n"
         else:
             print 'You don\'t have any status message currently \n'
@@ -75,11 +74,19 @@ class Users:
     def load_friends(self):
         cursor = conn.execute("select * from Users where id in (Select FriendID from Friend where Friend.Userid = ?)",(self.id,))
         for row in cursor:
-           # row = conn.execute("Select * from Users where User.id = ?",(row[0]))
             temp_user = Users(id=row[0], name=row[1], salutation=row[2], age=row[3], rating=row[4], username=row[5],
                               password=row[6],current_status_message=row[7])
             friends.append(temp_user)
         return friends
+
+    def load_chats(self):
+        cursor = conn.execute("Select * from Chats where senderid=? or receiverid=?",(self.id,self.id))
+        for row in cursor:
+            temp_chat = ChatMessage(id = row[0],spy_id=row[1],friend_id=row[2],message=row[3],time=row[4],message_read=row[5])
+            for friend in friends:
+                if friend.id==row[2]:
+                    friends[friends.index(friend)].chats.append(temp_chat)
+                    break
 
 
 
@@ -93,19 +100,14 @@ class Users:
 
         return user_list
 
-    @classmethod
-    def write(cls, **kwargs):
+    def save(self):
         print 'Writing to Database!!'
-        name = kwargs['name']
-        salutation = kwargs['salutation']
-        username = kwargs['username']
-        age = int(kwargs['age'])
-        rating = float(kwargs['rating'])
-        password = kwargs['password']
         try:
             conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
-                                            VALUES (?,?,?,?,?,?)", (name, salutation, username, password, age, rating))
+                                            VALUES (?,?,?,?,?,?)", (self.name, self.salutation, self.username, self.password, self.age, self.rating))
             conn.commit()
+            self.id = conn.execute("select max(id) from Users")
+
         except:
             print 'Couldn\'t write to the database'
 
@@ -124,10 +126,21 @@ class Users:
 
 class ChatMessage:
 
-  def __init__(self, message, sent_by_me):
+  def __init__(self,spy_id,friend_id, message,time,id=0,message_read=0):
+    self.id = 0
+    self.sender_id =  spy_id
+    self.receiver_id = friend_id
     self.message = message
-    self.time = datetime.now()
-    self.sent_by_me = sent_by_me
+    self.time = time
+    self.message_read = message_read
+
+  def save(self):
+      conn.execute("INSERT INTO CHATS(SENDERID,RECEIVERID,MESSAGE,DATETIME) VALUES(?,?,?,?)",(self.sender_id,self.receiver_id,self.message,self.time))
+      conn.commit()
+      cur = conn.execute('SELECT max(id) from Chats')
+      self.id = cur.fetchone()[0]
+
+
 
 
 class Friend():
@@ -139,5 +152,3 @@ class Friend():
     def save(self,spy):
         conn.execute("INSERT INTO FRIEND(Userid,FriendID) VALUES(?,?)",(spy.id,self.userid))
         conn.commit()
-
-friends = []

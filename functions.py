@@ -1,10 +1,11 @@
 from spy_details import friends,Users,Friend,ChatMessage
 from steganography.steganography import Steganography
-from datetime import datetime
 import ctypes
 from passlib.hash import pbkdf2_sha256
 import csv
 import Validators as validators
+from datetime import datetime
+import time
 
 usernames = []
 user_list = Users.load()
@@ -52,6 +53,7 @@ def login(username):
         passw = raw_input("Please enter your password to continue :")
         if pbkdf2_sha256.verify(passw, user_pass.password):
             user_pass.load_friends()
+            user_pass.load_chats()
             return user_pass
         else:
             ctypes.windll.user32.MessageBoxA(0, "Wrong Password entered", "Password error", 1)
@@ -61,13 +63,7 @@ def login(username):
 
 
 def signup():
-    # spy_username = get_username()
-    # spy_name = get_name()
-    # spy_salutation = get_salutation()
-    # spy_age = get_age()
-    # spy_rating = get_rating()
-    # print 'Got rating'
-    spy = Users('', '','', 0, 0.0,'','')
+    spy = Users(len(user_list),'', '','', 0, 0.0,'')
     spy.is_online = True
     spy.name = get_name()
     spy.username = get_username()
@@ -86,7 +82,8 @@ def signup():
     print 'Passwords matched\nRegistering User.Please Wait...'
     spy.password = pbkdf2_sha256.hash(user_pass)
     user_list.append(spy)
-    Users.write(name=spy.name,salutation=spy.salutation,username=spy.username,age=spy.age,rating=spy.rating,password=spy.password)
+    spy.save()
+    #Users.write(name=spy.name,salutation=spy.salutation,username=spy.username,age=spy.age,rating=spy.rating,password=spy.password)
 #     conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
 #                   VALUES (?,?,?,?,?,?)", (spy.name, spy.salutation, spy.name, spy.password, spy.age, spy.rating))
     with open("user_details.csv","ab") as user_data:
@@ -102,8 +99,7 @@ def start_chat(spy):
     show_menu = True
 
     while show_menu :
-        menu_choices = "What do you want to do? \n1. Add a status update\n2. Add a friend\n3. Select a friend" \
-                       "\n4. Send a Message\n5. Read a Message\n6. Read chats\n7. Logout\n8. Check Your Profile\n9. Close application\n"
+        menu_choices = "What do you want to do? \n1. Add a status update\n2. Add a friend\n3. Send a Message\n4. Read a Message\n5. Read chats\n6. Logout\n7. Check Your Profile\n8. Close application\n"
         menu_choice = (raw_input(menu_choices))
         if menu_choice.isdigit():
             menu_choice = int(menu_choice)
@@ -112,16 +108,14 @@ def start_chat(spy):
             elif menu_choice == 2:
                 len_friends = add_friend(spy)
             elif menu_choice == 3:
-                select_friend()
+                send_message(spy)
             elif menu_choice == 4:
-                send_message()
+                read_message(spy)
             elif menu_choice == 5:
-                read_message()
+                read_chats(spy)
             elif menu_choice == 6:
-                read_chats()
-            elif menu_choice == 7:
                 show_menu = False
-            elif menu_choice == 8:
+            elif menu_choice == 7:
                 show_profile(spy)
             else:
                 exit(0)
@@ -202,32 +196,33 @@ def select_friend():
     return None
 
 
-def send_message():
-  friend_choice = select_friend()
-  try:
-      original_image = raw_input("What is the name of the image?")
-      output_path = 'output.jpg'
-      text = raw_input("What do you want to say?")
+def send_message(spy):
+      friend_choice = select_friend()
       try:
-        Steganography.encode(original_image, output_path, text)
-      except IOError:
-          print 'File doesnt exist'
+          original_image = raw_input("What is the name of the image?")
+          output_path = 'output.jpg'
+          text = raw_input("What do you want to say?")
+          try:
+            Steganography.encode(original_image, output_path, text)
+          except IOError:
+              print 'File doesnt exist'
 
-      new_chat = ChatMessage(message= text,sent_by_me= True)
+          new_chat = ChatMessage(spy_id=spy.id, friend_id=friends[friend_choice].id,message=text,time= datetime.now().strftime("%b %d %Y %H:%M"))
+          new_chat.save()
+          friends[friend_choice].chats.append(new_chat)
+          print "Your secret message is ready!"
+      except:
+          print 'Operation Unsuccessful'
 
-      friends[friend_choice].chats.append(new_chat)
-      print "Your secret message is ready!"
-  except:
-      print 'Operation Unsuccessful'
 
-
-def read_message():
+def read_message(spy):
     try:
         friend_choice = select_friend()
-        output_path = raw_input('Enter image path')
+        output_path = raw_input('Enter image path ')
         try:
             secret_text = Steganography.decode(output_path)
-            new_chat = ChatMessage(message=secret_text, sent_by_me=False)
+            new_chat = ChatMessage(spy_id=friends[friend_choice].id, friend_id=spy.id, message=secret_text,time= datetime.now().strftime("%b %d %Y %H:%M"))
+            new_chat.save()
 
             friends[friend_choice].chats.append(new_chat)
             print "Your secret message is ready!"
@@ -238,15 +233,15 @@ def read_message():
         print 'Operation Unsuccessful'
 
 
-def read_chats():
+def read_chats(spy):
     if len(friends):
         friend_choice = select_friend()
         if len(friends[friend_choice].chats):
             for chat in friends[friend_choice].chats:
-                if chat.sent_by_me:
-                    print 'On ' + chat.time.strftime("%b %d %Y %H:%M:%S") +  ' You said : ' + chat.message
+                if chat.sender_id == spy.id:
+                    print 'On ' + chat.time + ' You said : ' + chat.message
                 else:
-                    print 'On ' + chat.time.strftime("%b %d %Y %H:%M:%S") + ' ' + friends[friend_choice].name + " said : " + chat.message
+                    print 'On ' + chat.time + ' ' + friends[friend_choice].name + " said : " + chat.message
         else:
             print 'You dont have any conversations'
     else:
