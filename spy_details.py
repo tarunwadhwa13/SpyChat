@@ -106,7 +106,8 @@ class Users:
             conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
                                             VALUES (?,?,?,?,?,?)", (self.name, self.salutation, self.username, self.password, self.age, self.rating))
             conn.commit()
-            self.id = conn.execute("select max(id) from Users")
+            cur = conn.execute("select max(id) from Users")
+            self.id = cur.fetchone()[0]
 
         except:
             print 'Couldn\'t write to the database'

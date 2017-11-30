@@ -35,7 +35,7 @@ if spy:
                         temp = signup()
                         if temp:
                             spy=temp
-                            start_chat(spy)
+                            start_chat(temp)
 
 
                 else:

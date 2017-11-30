@@ -92,6 +92,7 @@ def signup():
 
     print "Authentication complete. Welcome " + spy.name + " age: " + str(spy.age) + " and rating of: " + \
           str(spy.rating) + " Proud to have you Onboard"
+
     return spy
 
 
@@ -126,7 +127,6 @@ def start_chat(spy):
 def add_friend(spy):
     Users.show_user_details()
     index = spy.id
-    print 'Spy id ' + str(spy.id)
     while index == spy.id:
         index = validators.get_int("\nSelect user to add as friend ",1,len(user_list)+1)
         if index == spy.id:
