@@ -1,4 +1,4 @@
-from spy_details import friends,Users,Friend
+from spy_details import friends,Users,Friend,ChatMessage
 from steganography.steganography import Steganography
 from datetime import datetime
 import ctypes
@@ -13,7 +13,7 @@ user_list = Users.load()
 def load_users():
 
         for user in user_list:
-         usernames.append(user.username)
+         usernames.append(user.username.lower())
 
         # with open("user_details.csv","rb") as user_details:
         #     read_obj = csv.reader(user_details)
@@ -51,6 +51,7 @@ def login(username):
     while count<3:
         passw = raw_input("Please enter your password to continue :")
         if pbkdf2_sha256.verify(passw, user_pass.password):
+            user_pass.load_friends()
             return user_pass
         else:
             ctypes.windll.user32.MessageBoxA(0, "Wrong Password entered", "Password error", 1)
@@ -60,38 +61,40 @@ def login(username):
 
 
 def signup():
-    spy_username = get_username()
-    spy_name = get_name()
-    spy_salutation = get_salutation()
-    spy_age = get_age()
-    spy_rating = get_rating()
-    spy = Users('', '','', 0, 0.0,'')
+    # spy_username = get_username()
+    # spy_name = get_name()
+    # spy_salutation = get_salutation()
+    # spy_age = get_age()
+    # spy_rating = get_rating()
+    # print 'Got rating'
+    spy = Users('', '','', 0, 0.0,'','')
     spy.is_online = True
-    spy.name = spy_name
-    spy.username = spy_username
-    spy.salutation = spy_salutation
-    spy.age = spy_age
-    spy.rating = spy_rating
+    spy.name = get_name()
+    spy.username = get_username()
+    spy.salutation = get_salutation()
+    spy.age = get_age()
+    spy.rating = get_rating()
+    print 'Saved Details'
     user_pass = 'password'
     pass_verify = 'to verify password'
     while user_pass != pass_verify:
         user_pass = raw_input('Enter user Password :')
         pass_verify = raw_input('Verify Password :')
         if user_pass == pass_verify:
-            continue
+            break
         print 'Passwords matching failed. Please try again'
     print 'Passwords matched\nRegistering User.Please Wait...'
-    spy.password= pbkdf2_sha256.hash(user_pass)
+    spy.password = pbkdf2_sha256.hash(user_pass)
     user_list.append(spy)
-    Users.write(name=spy.name,salutation=spy.salutation,username=spy_username,age=spy.age,rating=spy.rating,password=spy.password)
+    Users.write(name=spy.name,salutation=spy.salutation,username=spy.username,age=spy.age,rating=spy.rating,password=spy.password)
 #     conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
 #                   VALUES (?,?,?,?,?,?)", (spy.name, spy.salutation, spy.name, spy.password, spy.age, spy.rating))
     with open("user_details.csv","ab") as user_data:
         write_obj = csv.writer(user_data)
-        write_obj.writerow([spy_name,spy_salutation,spy_username,spy_age,spy_rating,spy.password])
+        write_obj.writerow([spy.name,spy.salutation,spy.username,spy.age,spy.rating,spy.password])
 
-    print "Authentication complete. Welcome " + spy_name + " age: " + str(spy_age) + " and rating of: " + \
-          str(spy_rating) + " Proud to have you Onboard"
+    print "Authentication complete. Welcome " + spy.name + " age: " + str(spy.age) + " and rating of: " + \
+          str(spy.rating) + " Proud to have you Onboard"
     return spy
 
 
@@ -127,23 +130,17 @@ def start_chat(spy):
 
 
 def add_friend(spy):
-
-    # new_friend = Spy('','',0,0.0)
-    # new_friend.name = get_name()
-    # new_friend.salutation = get_salutation()
-    # new_friend.age = get_age()
-    # new_friend.rating = get_rating()
-    # try:
-    #     friends.append(new_friend)
-    # except:
-    #     print 'We couldn\'t add friend. Please try again or check log.'
     Users.show_user_details()
     index = spy.id
     print 'Spy id ' + str(spy.id)
     while index == spy.id:
-        index = validators.get_int("Select friend to add as friend",1,len(user_list)+1)
+        index = validators.get_int("\nSelect user to add as friend ",1,len(user_list)+1)
         if index == spy.id:
             print 'You cant add yourself as friend'
+        for friend in friends:
+            if index == friend.id:
+                print 'Friend Already Added'
+                index = spy.id
     friend = Friend(user_id = index)
     friend.save(spy)
     friends.append(user_list[index-1])
@@ -153,7 +150,7 @@ def add_friend(spy):
 
 def get_username():
     username = raw_input("Enter Username :")
-    if username in usernames:
+    if username.lower() in usernames:
         print 'User with this username already exists. Please try another name !!'
         return get_username()
     return username
@@ -161,7 +158,7 @@ def get_username():
 
 def get_name():
     try:
-        return validators.get_alpha("Please enter your name to continue",3)
+        return validators.get_alpha("Please enter your name to continue ",3)
     except:
         print 'There was some error while processing your request. Please Try Again'
     return get_name()
@@ -169,7 +166,7 @@ def get_name():
 
 def get_age():
     try:
-       return validators.get_int("Please Enter your age",12,50)
+       return validators.get_int("Please Enter your age ",12,50)
     except:
         print 'There was some error whiile processing your request. Please Try Again'
     return get_age()
@@ -185,7 +182,7 @@ def get_salutation():
 
 def get_rating():
     try:
-        return validators.get_float("Please Enter a vallid rating",1.0,10.0)
+        return validators.get_float("Please Enter a valid rating ",1.0,10.0)
     except:
         print 'There was some error whiile processing your request. Please Try Again'
     return get_rating()
@@ -207,53 +204,53 @@ def select_friend():
 
 def send_message():
   friend_choice = select_friend()
+  try:
+      original_image = raw_input("What is the name of the image?")
+      output_path = 'output.jpg'
+      text = raw_input("What do you want to say?")
+      try:
+        Steganography.encode(original_image, output_path, text)
+      except IOError:
+          print 'File doesnt exist'
 
-  original_image = raw_input("What is the name of the image?")
-  output_path = 'output.jpg'
-  text = raw_input("What do you want to say?")
-  Steganography.encode(original_image, output_path, text)
+      new_chat = ChatMessage(message= text,sent_by_me= True)
 
-  new_chat = {
-      "message": text,
-      "time": datetime.now(),
-      "sent_by_me": True
-  }
-
-  friends[friend_choice]['chats'].append(new_chat)
-  print friends[friend_choice]['chats']
-  print "Your secret message is ready!"
+      friends[friend_choice].chats.append(new_chat)
+      print "Your secret message is ready!"
+  except:
+      print 'Operation Unsuccessful'
 
 
 def read_message():
-    friend_choice = select_friend()
-    output_path = raw_input('Enter image path')
-    secret_text = Steganography.decode(output_path)
-    new_chat = {
-        "message": secret_text,
-        "time": datetime.now(),
-        "sent_by_me": False
-    }
-    print new_chat['message']
-    friends[friend_choice]['chats'].append(new_chat)
-    print "Your secret message is ready!"
+    try:
+        friend_choice = select_friend()
+        output_path = raw_input('Enter image path')
+        try:
+            secret_text = Steganography.decode(output_path)
+            new_chat = ChatMessage(message=secret_text, sent_by_me=False)
+
+            friends[friend_choice].chats.append(new_chat)
+            print "Your secret message is ready!"
+        except IOError:
+            print 'File Not Found'
+
+    except:
+        print 'Operation Unsuccessful'
 
 
 def read_chats():
-    friend_choice = select_friend()
-    if friend_choice:
+    if len(friends):
+        friend_choice = select_friend()
         if len(friends[friend_choice].chats):
             for chat in friends[friend_choice].chats:
                 if chat.sent_by_me:
-                    print '[%s] %s: %s' % (
-                        chat.time.strftime("%b %d %Y %H:%M:%S") +  'You said ' + chat.message)
+                    print 'On ' + chat.time.strftime("%b %d %Y %H:%M:%S") +  ' You said : ' + chat.message
                 else:
-                    print '[%s] %s read: %s' % (
-                    chat.time.strftime("%b %d %Y %H:%M:%S") + friends[friend_choice].name
-                    + chat.message)
+                    print 'On ' + chat.time.strftime("%b %d %Y %H:%M:%S") + ' ' + friends[friend_choice].name + " said : " + chat.message
         else:
             print 'You dont have any conversations'
     else:
-        print 'You dont have any friend'
+        print 'You dont have any chat'
 
 
 def show_profile(spy):

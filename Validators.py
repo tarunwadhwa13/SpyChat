@@ -28,7 +28,7 @@ def get_alpha(input_message,min_length=0,max_length=sys.maxint):
     else:
         ctypes.windll.user32.MessageBoxA(0, "That doesnt look like a valid input. Please use alphabets [a-z] only",
                                          "Error", 1)
-        return get_alpha(input_message,min_length,max_length)
+    return get_alpha(input_message,min_length,max_length)
 
 
 def get_float(input_message,min_length=0,max_length=sys.float_info.max):
@@ -41,9 +41,9 @@ def get_float(input_message,min_length=0,max_length=sys.float_info.max):
             print 'Input not within Limits:' + str(min_length) + ' to ' + str(max_length-1)
         except:
             print "Not a float"
-            return get_int(input_message, min_length=0, max_length=sys.maxint)
+            return get_int(input_message, min_length, max_length)
     else:
         ctypes.windll.user32.MessageBoxA(0, "That doesnt look like a valid input. Please Enter a float Value",
                                          "Error", 1)
-        return get_int(input_message,min_length,max_length)
+    return get_float(input_message,min_length,max_length)
 

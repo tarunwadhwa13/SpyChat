@@ -3,6 +3,7 @@ from passlib.hash import pbkdf2_sha256
 STATUS_MESSAGES = ['My name is Bond, James Bond', 'Shaken, not stirred.','Hey there']
 import sqlite3
 user_list = []
+friends = []
 conn = sqlite3.connect('test.db')
 import Validators as validator
 
@@ -71,8 +72,15 @@ class Users:
     def change_password(self):
         self.password = pbkdf2_sha256.hash(raw_input("Enter new password :"))
 
-    # def show_friends(self):
-    #     cursor = conn.execute("Select * from users where Friend.friendId = users.? and ",(self.id))
+    def load_friends(self):
+        cursor = conn.execute("select * from Users where id in (Select FriendID from Friend where Friend.Userid = ?)",(self.id,))
+        for row in cursor:
+           # row = conn.execute("Select * from Users where User.id = ?",(row[0]))
+            temp_user = Users(id=row[0], name=row[1], salutation=row[2], age=row[3], rating=row[4], username=row[5],
+                              password=row[6],current_status_message=row[7])
+            friends.append(temp_user)
+        return friends
+
 
 
     @classmethod
@@ -82,12 +90,12 @@ class Users:
             temp_user = Users(id = row[0],name=row[1],salutation=row[2],age=row[3],rating=row[4],username=row[5],password=row[6],\
                               current_status_message=row[7])
             user_list.append(temp_user)
+
         return user_list
 
     @classmethod
     def write(cls, **kwargs):
         print 'Writing to Database!!'
-        print kwargs
         name = kwargs['name']
         salutation = kwargs['salutation']
         username = kwargs['username']
@@ -98,7 +106,6 @@ class Users:
             conn.execute("INSERT INTO USERS(NAME,SALUTATION,USERNAME,PASSWORD,AGE,RATING)\
                                             VALUES (?,?,?,?,?,?)", (name, salutation, username, password, age, rating))
             conn.commit()
-            Users.show_user_details()
         except:
             print 'Couldn\'t write to the database'
 
@@ -106,7 +113,6 @@ class Users:
     @classmethod
     def show_user_details(cls):
         cursor = conn.execute("SELECT id, name,username, age, password,rating from USERS")
-        print 'GOT data'
         for row in cursor:
             print "ID = ", row[0]
             print "NAME = ", row[1]

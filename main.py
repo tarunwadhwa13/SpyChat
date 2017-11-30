@@ -37,6 +37,7 @@ if spy:
                             spy=temp
                             start_chat(spy)
 
+
                 else:
                     print 'Not a valid option i guess'
             except:
