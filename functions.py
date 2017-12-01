@@ -198,21 +198,25 @@ def select_friend():
 
 def send_message(spy):
       friend_choice = select_friend()
-      try:
-          original_image = raw_input("What is the name of the image?")
-          output_path = 'output.jpg'
-          text = raw_input("What do you want to say?")
+      valid_set = ['T','I']
+      text = raw_input("Please Enter your Message")
+      choice = validators.get_alpha('Want to send message as text or hide it in image?(T for text/I for Image) ',1,2,valid_set)
+      if choice == 'I':
           try:
-            Steganography.encode(original_image, output_path, text)
-          except IOError:
-              print 'File doesnt exist'
+              original_image = raw_input("What is the name of the image?")
+              output_path = 'output.jpg'
+              try:
+                Steganography.encode(original_image, output_path, text)
+              except IOError:
+                  print 'File doesnt exist'
+          except:
+              print 'Operation Unsuccessful'
+              return 0
 
-          new_chat = ChatMessage(spy_id=spy.id, friend_id=friends[friend_choice].id,message=text,time= datetime.now().strftime("%b %d %Y %H:%M"))
-          new_chat.save()
-          friends[friend_choice].chats.append(new_chat)
-          print "Your secret message is ready!"
-      except:
-          print 'Operation Unsuccessful'
+      new_chat = ChatMessage(spy_id=spy.id, friend_id=friends[friend_choice].id,message=text,time= datetime.now().strftime("%b %d %Y %H:%M"))
+      new_chat.save()
+      friends[friend_choice].chats.append(new_chat)
+      print "Your secret message is ready!"
 
 
 def read_message(spy):
